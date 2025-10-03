@@ -1,0 +1,5 @@
+{
+  "name": "QR Code Generator",
+  "description": "A simple and beautiful web application to generate QR codes from any URL. You can also download the generated QR code as a PNG image.",
+  "requestFramePermissions": []
+}
