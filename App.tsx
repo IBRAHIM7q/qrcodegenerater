@@ -122,6 +122,19 @@ const App: React.FC = () => {
                             className="w-full h-10 p-1 bg-cyber-background border border-cyan-400/30 rounded-md cursor-pointer" 
                         />
                     </div>
+                    
+                    <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Corner Dot Color</label>
+                        <input 
+                            type="color" 
+                            value={options.cornersDotOptions?.color || '#d946ef'} 
+                            onChange={(e) => handleOptionChange('cornersDotOptions', { 
+                                ...options.cornersDotOptions, 
+                                color: e.target.value 
+                            })} 
+                            className="w-full h-10 p-1 bg-cyber-background border border-cyan-400/30 rounded-md cursor-pointer" 
+                        />
+                    </div>
                 </div>
             </Accordion>
             
