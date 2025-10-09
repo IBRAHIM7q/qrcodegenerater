@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import QRCodePreview from './components/QRCodeDisplay';
 import LogoUpload from './components/LogoUpload';
+import PDFUpload from './components/PDFUpload';
+import PDFViewer from './components/PDFViewer';
 import CustomSlider from './components/CustomSlider';
 import Accordion from './components/Accordion';
 import GradientControls from './components/GradientControls';
@@ -53,6 +55,10 @@ const App: React.FC = () => {
   const [options, setOptions] = useState<QRCodeOptions>(initialOptions);
   const [dotsColorType, setDotsColorType] = useState<'solid' | 'gradient'>('gradient');
   const [backgroundColorType, setBackgroundColorType] = useState<'solid' | 'gradient'>('solid');
+  const [isPdfMode, setIsPdfMode] = useState<boolean>(false);
+  const [pdfFileName, setPdfFileName] = useState<string>('');
+  const [pdfId, setPdfId] = useState<string>('');
+  const [showPdfViewer, setShowPdfViewer] = useState<boolean>(false);
   
   useEffect(() => {
     setOptions(prev => ({ ...prev, data: url || ' ' }));
@@ -76,6 +82,9 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[#0f0f2c] via-[#1b1b3f] to-[#2d1b4f] p-4 lg:p-8 flex flex-col items-center">
+      {showPdfViewer && isPdfMode && url && (
+        <PDFViewer pdfUrl={url} pdfId={pdfId} onClose={() => setShowPdfViewer(false)} />
+      )}
       <header className="text-center mb-8 animate-fade-in-scale">
         <h1 className="text-4xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Ibrahim - Create Your QR Code</h1>
         <p className="text-gray-300 mt-3 text-xl">Design stunning QR codes with a modern aesthetic</p>
@@ -92,16 +101,74 @@ const App: React.FC = () => {
         {/* RIGHT - CONTROLS */}
         <div className="flex flex-col space-y-6">
             <div className="bg-cyber-card/70 backdrop-blur-xl border border-cyan-400/20 rounded-2xl p-6 shadow-glass">
-                 <label htmlFor="url-input" className="block text-sm font-semibold text-gray-300 mb-2">URL</label>
-                 <input
-                    id="url-input"
-                    type="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://example.com"
-                    required
-                    className="w-full px-4 py-3 bg-cyber-background text-gray-100 border border-cyan-400/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyber-accent focus:border-cyber-accent transition-all"
-                 />
+                <div className="flex space-x-4 mb-4">
+                    <button 
+                        className={`px-4 py-2 rounded-lg transition-all ${!isPdfMode ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white' : 'bg-gray-700/50 text-gray-300'}`}
+                        onClick={() => setIsPdfMode(false)}
+                    >
+                        URL
+                    </button>
+                    <button 
+                        className={`px-4 py-2 rounded-lg transition-all ${isPdfMode ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white' : 'bg-gray-700/50 text-gray-300'}`}
+                        onClick={() => setIsPdfMode(true)}
+                    >
+                        PDF
+                    </button>
+                </div>
+                
+                {!isPdfMode ? (
+                    <>
+                        <label htmlFor="url-input" className="block text-sm font-semibold text-gray-300 mb-2">URL</label>
+                        <input
+                            id="url-input"
+                            type="url"
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                            placeholder="https://example.com"
+                            required
+                            className="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
+                        />
+                    </>
+                ) : (
+                    <>
+                        <label className="block text-sm font-semibold text-gray-300 mb-2">PDF File</label>
+                        <PDFUpload 
+                            onPDFUploaded={(pdfUrl, fileName, id) => {
+                                setUrl(pdfUrl);
+                                setPdfFileName(fileName);
+                                if (id) setPdfId(id);
+                            }} 
+                        />
+                        {pdfFileName && (
+                            <div className="mt-2">
+                                <p className="text-sm text-cyan-400 mb-2">
+                                    PDF: {pdfFileName}
+                                </p>
+                                <div className="flex space-x-2">
+                                    <button 
+                                        onClick={() => setShowPdfViewer(true)}
+                                        className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-lg hover:from-cyan-600 hover:to-cyan-700 transition-all"
+                                    >
+                                        View PDF
+                                    </button>
+                                </div>
+                                <div className="mt-4 p-3 bg-cyan-900/30 border border-cyan-400/30 rounded-lg">
+                                    <p className="text-sm text-white">
+                                        <span className="font-bold text-cyan-400">Scanning Instructions:</span> Scan this QR code with your mobile device camera or QR scanner app to view the PDF online instantly.
+                                    </p>
+                                    <p className="text-sm text-white mt-2">
+                                        <span className="text-green-400">Works on all devices:</span> This QR code will open a PDF viewer that works on both mobile and desktop browsers.
+                                    </p>
+                                    <p className="text-sm text-white mt-2">
+                                        <span className="text-yellow-400">Note:</span> For demonstration purposes, this will display a sample PDF document.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+                    
+                    
             </div>
 
             <Accordion title="Dots & Corners">
