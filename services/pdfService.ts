@@ -1,48 +1,125 @@
-// This service handles PDF uploads and uses Mozilla's PDF.js for viewing
-// It uses a sample PDF for demonstration purposes
+// This service handles PDF uploads to our local server
+// For Google Drive integration, OAuth2 authentication is required
 
-// Mozilla's PDF.js viewer URL
-const PDF_JS_VIEWER = 'https://mozilla.github.io/pdf.js/web/viewer.html';
-
-// Sample PDF URL that's publicly accessible
-const SAMPLE_PDF_URL = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+// Server endpoint (using proxy to avoid CORS issues)
+const SERVER_URL = '/api';
 
 // Storage for uploaded PDFs
 const uploadedPDFs: Record<string, { 
   id: string;
   name: string; 
   url: string;
+  serverFileId: string; // Server file ID
+  serverViewUrl: string; // Direct server view URL
+  driveFileId: string | null; // Google Drive file ID (null until uploaded)
+  driveViewUrl: string | null; // Google Drive view URL (null until uploaded)
   uploadDate: Date;
 }> = {};
 
 /**
- * Upload a PDF file and generate a viewer URL
+ * Upload a PDF file to our local server
  * @param file The PDF file to upload
  * @returns A promise that resolves to the URL of the uploaded PDF
  */
 export const uploadPDF = async (file: File): Promise<{ url: string; id: string }> => {
-  return new Promise((resolve) => {
-    // Generate a unique ID for the PDF
-    const id = generateUniqueId();
-    
-    // For demonstration purposes, we'll use a sample PDF that's publicly accessible
-    // In a real app, you would upload the file to a server and get back a public URL
-    
-    // Create a URL that will work with Mozilla's PDF.js viewer
-    const url = `${PDF_JS_VIEWER}?file=${encodeURIComponent(SAMPLE_PDF_URL)}`;
-    
-    // Store the PDF in our storage
-    uploadedPDFs[id] = {
-      id,
-      name: file.name,
-      url,
-      uploadDate: new Date()
-    };
-    
-    console.log(`PDF uploaded with ID: ${id}`);
-    
-    // Resolve with the URL and ID
-    resolve({ url, id });
+  return new Promise((resolve, reject) => {
+    try {
+      // Create form data for the upload
+      const formData = new FormData();
+      formData.append('pdf', file);
+      
+      // Upload to our local server through proxy
+      fetch(`${SERVER_URL}/upload`, {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Failed to upload to server: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        const serverFileId = data.id;
+        const serverViewUrl = data.url;
+        
+        // Store the PDF in our storage
+        uploadedPDFs[serverFileId] = {
+          id: serverFileId,
+          name: file.name,
+          url: serverViewUrl,
+          serverFileId,
+          serverViewUrl,
+          driveFileId: null,
+          driveViewUrl: null,
+          uploadDate: new Date()
+        };
+        
+        console.log(`PDF uploaded to server with ID: ${serverFileId}`);
+        
+        // Resolve with the URL and ID
+        resolve({ url: serverViewUrl, id: serverFileId });
+      })
+      .catch(error => {
+        console.error('Error uploading to server:', error);
+        reject(error);
+      });
+    } catch (error) {
+      console.error('Error processing PDF:', error);
+      reject(error);
+    }
+  });
+};
+
+/**
+ * Simulate uploading a file to Google Drive
+ * In a real implementation, this would use OAuth2 authentication
+ * @param id The ID of the file to upload to Google Drive
+ * @returns A promise that resolves to the Google Drive URL
+ */
+export const uploadToGoogleDrive = async (id: string): Promise<{ url: string; driveFileId: string }> => {
+  return new Promise((resolve, reject) => {
+    try {
+      // In a real implementation, this would:
+      // 1. Authenticate with Google using OAuth2
+      // 2. Upload the file to Google Drive
+      // 3. Get the Google Drive file ID
+      // 4. Make the file publicly accessible
+      // 5. Return the Google Drive URL
+      
+      // For now, we'll simulate this by calling our server endpoint
+      fetch(`${SERVER_URL}/upload-to-drive/${id}`, {
+        method: 'POST'
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Failed to upload to Google Drive simulation: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        const driveFileId = data.driveFileId;
+        const driveViewUrl = data.url;
+        
+        // Update the PDF in our storage
+        if (uploadedPDFs[id]) {
+          uploadedPDFs[id].driveFileId = driveFileId;
+          uploadedPDFs[id].driveViewUrl = driveViewUrl;
+        }
+        
+        console.log(`PDF simulated upload to Google Drive with ID: ${driveFileId}`);
+        
+        // Resolve with the Google Drive URL and ID
+        resolve({ url: driveViewUrl, driveFileId });
+      })
+      .catch(error => {
+        console.error('Error uploading to Google Drive simulation:', error);
+        reject(error);
+      });
+    } catch (error) {
+      console.error('Error processing Google Drive upload:', error);
+      reject(error);
+    }
   });
 };
 
@@ -72,10 +149,11 @@ const generateUniqueId = (): string => {
 export const getViewUrl = (id: string): string => {
   const pdf = getPDF(id);
   if (pdf) {
-    return pdf.url; // Return the Mozilla PDF.js viewer URL
+    // Return Google Drive URL if available, otherwise server URL
+    return pdf.driveViewUrl || pdf.url;
   }
-  // Fallback to a default PDF viewer URL with the sample PDF
-  return `${PDF_JS_VIEWER}?file=${encodeURIComponent(SAMPLE_PDF_URL)}`;
+  // Fallback to an empty string if PDF not found
+  return '';
 };
 
 /**
@@ -84,14 +162,24 @@ export const getViewUrl = (id: string): string => {
  * @returns The URL for the QR code
  */
 export const getQRCodeUrl = (id: string): string => {
-  // For QR codes, we'll use the Mozilla PDF.js viewer directly
-  // This ensures the PDF can be viewed on any device without requiring our app
   const pdf = getPDF(id);
   if (pdf) {
-    // Return the Mozilla PDF.js viewer URL directly
-    return pdf.url;
+    // Return Google Drive URL if available, otherwise server URL
+    return pdf.driveViewUrl || pdf.serverViewUrl;
   }
-  
-  // Fallback to a default PDF viewer URL with the sample PDF
-  return `${PDF_JS_VIEWER}?file=${encodeURIComponent(SAMPLE_PDF_URL)}`;
+  return '';
+};
+
+/**
+ * Get the direct URL for a PDF
+ * @param id The ID of the PDF
+ * @returns The direct URL
+ */
+export const getDirectUrl = (id: string): string => {
+  const pdf = getPDF(id);
+  if (pdf) {
+    // Return Google Drive URL if available, otherwise server URL
+    return pdf.driveViewUrl || pdf.serverViewUrl;
+  }
+  return '';
 };
