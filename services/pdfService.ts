@@ -101,6 +101,13 @@ export const getViewUrl = (id: string): string => {
  * @returns The URL for the QR code
  */
 export const getQRCodeUrl = (id: string): string => {
+  // Get the deployed Netlify URL or use the current origin as fallback
+  const netlifyUrl = 'https://your-netlify-app.netlify.app';
+  const baseUrl = window.location.hostname.includes('netlify') 
+    ? window.location.origin 
+    : netlifyUrl;
+  
   // Create a URL that will open the PDF viewer page with the PDF ID
-  return `${window.location.origin}/view-pdf?id=${id}`;
+  // Make sure to use the correct path format for Netlify
+  return `${baseUrl}/view-pdf?id=${id}`;
 };
