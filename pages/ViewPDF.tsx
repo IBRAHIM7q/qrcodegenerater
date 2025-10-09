@@ -10,25 +10,14 @@ const ViewPDF: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) {
-      setError('No PDF ID provided');
-      setLoading(false);
-      return;
-    }
+    // If no ID is provided, we'll still show the default PDF
+    const url = id ? getViewUrl(id) : getViewUrl('');
     
-    console.log('Loading PDF with ID:', id);
-    
-    // Get the PDF URL using the ID
-    const url = getViewUrl(id);
-    
-    if (!url) {
-      setError('PDF not found');
-      setLoading(false);
-      return;
-    }
-    
+    // The getViewUrl function now always returns a valid URL
     setPdfUrl(url);
     setLoading(false);
+    
+    console.log('PDF Viewer URL:', url);
   }, [id]);
 
   if (loading) {

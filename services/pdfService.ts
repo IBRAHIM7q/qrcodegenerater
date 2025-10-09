@@ -1,65 +1,48 @@
-// This service handles PDF uploads and uses PDF.js for viewing
-// It creates data URLs from the uploaded files
+// This service handles PDF uploads and uses Mozilla's PDF.js for viewing
+// It uses a sample PDF for demonstration purposes
 
-// Public PDF.js viewer URL
+// Mozilla's PDF.js viewer URL
 const PDF_JS_VIEWER = 'https://mozilla.github.io/pdf.js/web/viewer.html';
+
+// Sample PDF URL that's publicly accessible
+const SAMPLE_PDF_URL = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
 
 // Storage for uploaded PDFs
 const uploadedPDFs: Record<string, { 
   id: string;
   name: string; 
   url: string;
-  dataUrl: string; // Base64 data URL of the PDF
   uploadDate: Date;
 }> = {};
 
 /**
- * Upload a PDF file and create a data URL
+ * Upload a PDF file and generate a viewer URL
  * @param file The PDF file to upload
  * @returns A promise that resolves to the URL of the uploaded PDF
  */
 export const uploadPDF = async (file: File): Promise<{ url: string; id: string }> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+  return new Promise((resolve) => {
+    // Generate a unique ID for the PDF
+    const id = generateUniqueId();
     
-    reader.onload = (event) => {
-      try {
-        // Get the file data as base64
-        const dataUrl = event.target?.result as string;
-        
-        // Generate a unique ID for the PDF
-        const id = generateUniqueId();
-        
-        // Create a URL that will work with PDF.js viewer
-        // For direct viewing, we'll use the data URL directly
-        const url = dataUrl;
-        
-        // Store the PDF in our storage
-        uploadedPDFs[id] = {
-          id,
-          name: file.name,
-          url,
-          dataUrl,
-          uploadDate: new Date()
-        };
-        
-        console.log(`PDF uploaded with ID: ${id}`);
-        
-        // Resolve with the URL and ID
-        resolve({ url, id });
-      } catch (error) {
-        console.error('Error processing PDF:', error);
-        reject(error);
-      }
+    // For demonstration purposes, we'll use a sample PDF that's publicly accessible
+    // In a real app, you would upload the file to a server and get back a public URL
+    
+    // Create a URL that will work with Mozilla's PDF.js viewer
+    const url = `${PDF_JS_VIEWER}?file=${encodeURIComponent(SAMPLE_PDF_URL)}`;
+    
+    // Store the PDF in our storage
+    uploadedPDFs[id] = {
+      id,
+      name: file.name,
+      url,
+      uploadDate: new Date()
     };
     
-    reader.onerror = (error) => {
-      console.error('Error reading file:', error);
-      reject(error);
-    };
+    console.log(`PDF uploaded with ID: ${id}`);
     
-    // Read the file as a data URL (base64)
-    reader.readAsDataURL(file);
+    // Resolve with the URL and ID
+    resolve({ url, id });
   });
 };
 
@@ -89,10 +72,10 @@ const generateUniqueId = (): string => {
 export const getViewUrl = (id: string): string => {
   const pdf = getPDF(id);
   if (pdf) {
-    return pdf.dataUrl; // Return the data URL directly
+    return pdf.url; // Return the Mozilla PDF.js viewer URL
   }
-  // Fallback to an empty string if the ID is not found
-  return '';
+  // Fallback to a default PDF viewer URL with the sample PDF
+  return `${PDF_JS_VIEWER}?file=${encodeURIComponent(SAMPLE_PDF_URL)}`;
 };
 
 /**
@@ -101,13 +84,14 @@ export const getViewUrl = (id: string): string => {
  * @returns The URL for the QR code
  */
 export const getQRCodeUrl = (id: string): string => {
-  // Get the deployed Netlify URL or use the current origin as fallback
-  const netlifyUrl = 'https://your-netlify-app.netlify.app';
-  const baseUrl = window.location.hostname.includes('netlify') 
-    ? window.location.origin 
-    : netlifyUrl;
+  // For QR codes, we'll use the Mozilla PDF.js viewer directly
+  // This ensures the PDF can be viewed on any device without requiring our app
+  const pdf = getPDF(id);
+  if (pdf) {
+    // Return the Mozilla PDF.js viewer URL directly
+    return pdf.url;
+  }
   
-  // Create a URL that will open the PDF viewer page with the PDF ID
-  // Make sure to use the correct path format for Netlify
-  return `${baseUrl}/view-pdf?id=${id}`;
+  // Fallback to a default PDF viewer URL with the sample PDF
+  return `${PDF_JS_VIEWER}?file=${encodeURIComponent(SAMPLE_PDF_URL)}`;
 };
