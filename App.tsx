@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import QRCodePreview from './components/QRCodeDisplay';
 import LogoUpload from './components/LogoUpload';
-import PDFUpload from './components/PDFUpload';
-import PDFViewer from './components/PDFViewer';
 import CustomSlider from './components/CustomSlider';
 import Accordion from './components/Accordion';
 import GradientControls from './components/GradientControls';
-import { getDirectUrl } from './services/pdfService';
 
 import type { Options as QRCodeOptions, DotType, CornerSquareType, CornerDotType } from 'qr-code-styling';
 
@@ -38,7 +36,7 @@ const initialOptions: QRCodeOptions = {
     }
   },
   backgroundOptions: {
-    color: '#0a0a0a', // Even darker background for enhanced dark mode
+    color: '#000000',
   },
   cornersSquareOptions: {
     type: 'extra-rounded',
@@ -55,13 +53,6 @@ const App: React.FC = () => {
   const [options, setOptions] = useState<QRCodeOptions>(initialOptions);
   const [dotsColorType, setDotsColorType] = useState<'solid' | 'gradient'>('gradient');
   const [backgroundColorType, setBackgroundColorType] = useState<'solid' | 'gradient'>('solid');
-  const [isPdfMode, setIsPdfMode] = useState<boolean>(false);
-  const [pdfFileName, setPdfFileName] = useState<string>('');
-  const [pdfId, setPdfId] = useState<string>('');
-  const [pdfDirectUrl, setPdfDirectUrl] = useState<string>('');
-  const [showPdfViewer, setShowPdfViewer] = useState<boolean>(false);
-  const [isGoogleDriveReady, setIsGoogleDriveReady] = useState<boolean>(false);
-  const [isInitializing, setIsInitializing] = useState<boolean>(true);
   
   useEffect(() => {
     setOptions(prev => ({ ...prev, data: url || ' ' }));
@@ -83,119 +74,196 @@ const App: React.FC = () => {
   const cornerSquareTypes: CornerSquareType[] = ['square', 'dot', 'extra-rounded'];
   const cornerDotTypes: CornerDotType[] = ['square', 'dot'];
 
+  const [activeTab, setActiveTab] = useState('url');
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.type !== 'application/pdf') {
+        setUploadError('Please select a PDF file');
+        setFile(null);
+        return;
+      }
+      if (selectedFile.size > 10 * 1024 * 1024) { // 10MB limit
+        setUploadError('File size exceeds 10MB limit');
+        setFile(null);
+        return;
+      }
+      setFile(selectedFile);
+      setUploadError(null);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    
+    setUploading(true);
+    setUploadError(null);
+    
+    const formData = new FormData();
+    formData.append('pdf', file);
+    
+    try {
+      const response = await fetch('http://localhost:3009/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to upload PDF');
+      }
+      
+      setPdfUrl(data.url);
+      setOptions(prev => ({
+        ...prev,
+        data: data.url
+      }));
+      setUploadSuccess(true);
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadError(error instanceof Error ? error.message : 'Failed to upload PDF');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFile(null);
+    setUploadSuccess(false);
+    setPdfUrl(null);
+    setUploadError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-[#000000] via-[#0a0a0a] to-[#121212] p-4 lg:p-8 flex flex-col items-center">
-      {showPdfViewer && isPdfMode && url && (
-        <PDFViewer pdfUrl={url} pdfId={pdfId} onClose={() => setShowPdfViewer(false)} />
-      )}
+    <div className="min-h-screen w-full bg-black p-4 lg:p-8 flex flex-col items-center">
       <header className="text-center mb-8 animate-fade-in-scale">
         <h1 className="text-4xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Ibrahim - QR Code Generator</h1>
-        <p className="text-gray-400 mt-3 text-xl">Create Stunning QR Codes with Google Drive Integration</p>
+        <p className="text-gray-300 mt-3 text-xl">Create Stunning QR Codes with Google Drive Integration</p>
       </header>
+      
+      <div className="w-full max-w-7xl mb-8">
+        <div className="flex justify-center mb-6">
+          <div className="bg-gray-900 p-1 rounded-lg inline-flex">
+            <button 
+              onClick={() => setActiveTab('url')} 
+              className={`px-6 py-2 rounded-md font-medium transition-all ${
+                activeTab === 'url' 
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              URL
+            </button>
+            <button 
+              onClick={() => setActiveTab('pdf')} 
+              className={`px-6 py-2 rounded-md font-medium transition-all ${
+                activeTab === 'pdf' 
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              PDF
+            </button>
+          </div>
+        </div>
+      </div>
       
       <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* LEFT - PREVIEW */}
-        <div className="lg:sticky top-8 self-start flex flex-col items-center justify-center p-8 bg-[#0a0a0a] backdrop-blur-xl border border-gray-800 rounded-3xl shadow-[0_0_20px_rgba(34,211,238,0.25)] transition-all duration-300 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]">
-            <div className="bg-[#121212] p-6 rounded-2xl mb-6 w-full">
-                <QRCodePreview options={options} pdfUrl={pdfDirectUrl} />
+        <div className="lg:sticky top-8 self-start flex flex-col items-center justify-center p-8 bg-gray-900 border border-gray-800 rounded-3xl shadow-[0_0_15px_rgba(34,211,238,0.2)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(34,211,238,0.3)]">
+            <div className="bg-gray-800 p-6 rounded-2xl mb-6 w-full">
+                <QRCodePreview options={options} />
             </div>
         </div>
 
         {/* RIGHT - CONTROLS */}
-        <div className="flex flex-col space-y-6">
-            <div className="bg-[#0f0f0f]/70 backdrop-blur-xl border border-cyan-400/20 rounded-2xl p-6 shadow-glass">
-                <div className="flex space-x-4 mb-4">
-                    <button 
-                        className={`px-4 py-2 rounded-lg transition-all ${!isPdfMode ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white' : 'bg-gray-800/50 text-gray-300'}`}
-                        onClick={() => setIsPdfMode(false)}
-                    >
-                        URL
-                    </button>
-                    <button 
-                        className={`px-4 py-2 rounded-lg transition-all ${isPdfMode ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white' : 'bg-gray-800/50 text-gray-300'}`}
-                        onClick={() => setIsPdfMode(true)}
-                    >
-                        PDF
-                    </button>
+        <div className="flex flex-col space-y-6 bg-gray-900 p-8 rounded-3xl border border-gray-800">
+          {activeTab === 'url' ? (
+            <>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Enter URL
+                </label>
+                <input
+                  type="text"
+                  value={options.data as string}
+                  onChange={(e) => handleOptionChange('data', e.target.value)}
+                  placeholder="https://example.com"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              {!uploadSuccess ? (
+                <div className="w-full">
+                  <h2 className="text-xl font-bold mb-4 text-white">Upload PDF for QR Code</h2>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Select PDF File
+                    </label>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept="application/pdf"
+                      className="w-full px-3 py-2 text-sm text-gray-300 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                  </div>
+                  {uploadError && (
+                    <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded-md text-red-400 text-sm">
+                      {uploadError}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleUpload}
+                    disabled={!file || uploading}
+                    className={`w-full py-2 px-4 rounded-md font-medium transition-all ${
+                      !file || uploading
+                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700 shadow-lg shadow-cyan-500/20'
+                    }`}
+                  >
+                    {uploading ? 'Uploading...' : 'Upload PDF & Generate QR Code'}
+                  </button>
                 </div>
-                
-                {!isPdfMode ? (
-                    <>
-                        <label htmlFor="url-input" className="block text-sm font-semibold text-gray-300 mb-2">URL</label>
-                        <input
-                            id="url-input"
-                            type="url"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            placeholder="https://example.com"
-                            required
-                            className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
-                        />
-                    </>
-                ) : (
-                    <>
-                        <label className="block text-sm font-semibold text-gray-300 mb-2">PDF File</label>
-                        <PDFUpload 
-                            onPDFUploaded={(pdfUrl, fileName, id) => {
-                                setUrl(pdfUrl);
-                                setPdfFileName(fileName);
-                                if (id) {
-                                  setPdfId(id);
-                                  const directUrl = getDirectUrl(id);
-                                  setPdfDirectUrl(directUrl);
-                                }
-                            }} 
-                        />
-                        {pdfFileName && (
-                            <div className="mt-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <p className="text-sm text-cyan-400 font-medium">
-                                      Uploaded PDF: {pdfFileName}
-                                  </p>
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/30 text-green-400 border border-green-400/30">
-                                    <svg className="mr-1.5 h-2 w-2 text-green-400" fill="currentColor" viewBox="0 0 8 8">
-                                      <circle cx="4" cy="4" r="3" />
-                                    </svg>
-                                    Saved to Google Drive
-                                  </span>
-                                </div>
-                                <div className="flex space-x-2">
-                                    <button 
-                                        onClick={() => setShowPdfViewer(true)}
-                                        className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-lg hover:from-cyan-600 hover:to-cyan-700 transition-all text-sm"
-                                    >
-                                        View PDF
-                                    </button>
-                                </div>
-                                <div className="mt-4 p-4 bg-cyan-900/20 border border-cyan-400/20 rounded-lg">
-                                  <h4 className="text-cyan-400 font-medium mb-2 flex items-center">
-                                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    How to Use Your QR Code
-                                  </h4>
-                                  <ul className="text-sm text-gray-300 space-y-2">
-                                    <li className="flex items-start">
-                                      <span className="text-cyan-400 mr-2">•</span>
-                                      <span>Scan this QR code with any smartphone camera or QR scanner app</span>
-                                    </li>
-                                    <li className="flex items-start">
-                                      <span className="text-cyan-400 mr-2">•</span>
-                                      <span>Your PDF is permanently stored in Google Drive and accessible anytime</span>
-                                    </li>
-                                    <li className="flex items-start">
-                                      <span className="text-cyan-400 mr-2">•</span>
-                                      <span>Share the QR code with anyone to give them instant access to your document</span>
-                                    </li>
-                                  </ul>
-                                </div>
-                            </div>
-                        )}
-                    </>
-                )}
-                    
-                    
-            </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <h2 className="text-xl font-bold mb-4 text-white">PDF Uploaded Successfully!</h2>
+                  <p className="text-gray-300 mb-6 text-center">
+                    Your PDF is now available online. The QR code has been generated.
+                  </p>
+                  
+                  {pdfUrl && (
+                    <div className="mb-6 w-full">
+                      <p className="text-sm text-gray-400 mb-2">PDF URL:</p>
+                      <div className="p-3 bg-gray-800 rounded-md text-gray-300 text-sm break-all">
+                        {pdfUrl}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={resetForm}
+                    className="w-full py-2 px-4 bg-gray-700 text-white rounded-md font-medium hover:bg-gray-600 transition-all"
+                  >
+                    Upload Another PDF
+                  </button>
+                </div>
+              )}
+            </>
+          )}
 
             <Accordion title="Dots & Corners">
                 <div className="space-y-4 p-4">
@@ -212,20 +280,7 @@ const App: React.FC = () => {
                                 ...options.cornersSquareOptions, 
                                 color: e.target.value 
                             })} 
-                            className="w-full h-10 p-1 bg-[#1a1a1a] border border-cyan-400/30 rounded-md cursor-pointer" 
-                        />
-                    </div>
-                    
-                    <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Corner Dot Color</label>
-                        <input 
-                            type="color" 
-                            value={options.cornersDotOptions?.color || '#d946ef'} 
-                            onChange={(e) => handleOptionChange('cornersDotOptions', { 
-                                ...options.cornersDotOptions, 
-                                color: e.target.value 
-                            })} 
-                            className="w-full h-10 p-1 bg-[#1a1a1a] border border-cyan-400/30 rounded-md cursor-pointer" 
+                            className="w-full h-10 p-1 bg-cyber-background border border-cyan-400/30 rounded-md cursor-pointer" 
                         />
                     </div>
                 </div>
@@ -252,7 +307,7 @@ const App: React.FC = () => {
                         {dotsColorType === 'solid' ? (
                             <div>
                               <label className="block text-sm font-medium text-gray-400 mb-1">Dots Color</label>
-                              <input type="color" value={options.dotsOptions?.color} onChange={(e) => handleOptionChange('dotsOptions', { ...options.dotsOptions, color: e.target.value, gradient: undefined })} className="w-full h-10 p-1 bg-[#1a1a1a] border border-cyan-400/30 rounded-md cursor-pointer" />
+                              <input type="color" value={options.dotsOptions?.color} onChange={(e) => handleOptionChange('dotsOptions', { ...options.dotsOptions, color: e.target.value, gradient: undefined })} className="w-full h-10 p-1 bg-cyber-background border border-cyan-400/30 rounded-md cursor-pointer" />
                             </div>
                         ) : (
                            <GradientControls
@@ -283,7 +338,7 @@ const App: React.FC = () => {
                         {backgroundColorType === 'solid' ? (
                             <div>
                               <label className="block text-sm font-medium text-gray-400 mb-1">Background Color</label>
-                              <input type="color" value={options.backgroundOptions?.color} onChange={(e) => handleOptionChange('backgroundOptions', { ...options.backgroundOptions, color: e.target.value, gradient: undefined })} className="w-full h-10 p-1 bg-[#1a1a1a] border border-cyan-400/30 rounded-md cursor-pointer" />
+                              <input type="color" value={options.backgroundOptions?.color} onChange={(e) => handleOptionChange('backgroundOptions', { ...options.backgroundOptions, color: e.target.value, gradient: undefined })} className="w-full h-10 p-1 bg-cyber-background border border-cyan-400/30 rounded-md cursor-pointer" />
                             </div>
                         ) : (
                            <GradientControls
@@ -308,10 +363,6 @@ const App: React.FC = () => {
             </Accordion>
         </div>
       </div>
-      
-      <footer className="mt-12 text-center text-gray-500 text-sm">
-        <p>© {new Date().getFullYear()} Ibrahim QR Code Generator - All PDFs securely stored in Google Drive</p>
-      </footer>
     </div>
   );
 };
@@ -321,7 +372,7 @@ const StyleSelector: React.FC<{ label: string, options: string[], value: string,
     <label className="block text-sm font-semibold text-gray-300 mb-2">{label}</label>
     <div className="flex flex-wrap gap-2">
       {options.map(opt => (
-        <button key={opt} onClick={() => onChange(opt)} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${value === opt ? 'bg-cyber-accent text-black shadow-neon' : 'bg-[#1a1a1a] text-gray-300 hover:bg-gray-800'}`}>
+        <button key={opt} onClick={() => onChange(opt)} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${value === opt ? 'bg-cyber-accent text-black shadow-neon' : 'bg-cyber-background text-gray-300 hover:bg-gray-800'}`}>
           {opt.replace(/-/g, ' ')}
         </button>
       ))}
@@ -331,10 +382,10 @@ const StyleSelector: React.FC<{ label: string, options: string[], value: string,
 
 const ColorModeToggle: React.FC<{ mode: 'solid' | 'gradient'; setMode: (mode: 'solid' | 'gradient') => void; }> = ({ mode, setMode }) => (
     <>
-        <button onClick={() => setMode('solid')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${mode === 'solid' ? 'bg-cyber-accent text-black shadow-neon' : 'bg-[#1a1a1a] text-gray-300 hover:bg-gray-800'}`}>
+        <button onClick={() => setMode('solid')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${mode === 'solid' ? 'bg-cyber-accent text-black shadow-neon' : 'bg-cyber-background text-gray-300 hover:bg-gray-800'}`}>
             Solid
         </button>
-        <button onClick={() => setMode('gradient')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${mode === 'gradient' ? 'bg-cyber-accent text-black shadow-neon' : 'bg-[#1a1a1a] text-gray-300 hover:bg-gray-800'}`}>
+        <button onClick={() => setMode('gradient')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${mode === 'gradient' ? 'bg-cyber-accent text-black shadow-neon' : 'bg-cyber-background text-gray-300 hover:bg-gray-800'}`}>
             Gradient
         </button>
     </>

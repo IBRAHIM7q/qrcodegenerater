@@ -9,21 +9,31 @@ const ViewPDF: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) {
-      setError('No PDF ID provided');
-      setLoading(false);
-      return;
-    }
+    const fetchPdfUrl = async () => {
+      if (!id) {
+        setError('No PDF ID provided');
+        setLoading(false);
+        return;
+      }
 
-    const url = getViewUrl(id);
-    if (!url) {
-      setError('PDF not found');
-      setLoading(false);
-      return;
-    }
+      try {
+        const url = await getViewUrl(id);
+        if (!url) {
+          setError('PDF not found');
+          setLoading(false);
+          return;
+        }
 
-    setPdfUrl(url);
-    setLoading(false);
+        setPdfUrl(url);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching PDF:', err);
+        setError('Error loading PDF');
+        setLoading(false);
+      }
+    };
+
+    fetchPdfUrl();
   }, [id]);
 
   if (loading) {

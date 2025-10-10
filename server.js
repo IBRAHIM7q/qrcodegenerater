@@ -4,10 +4,14 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+import { PrismaClient } from '@prisma/client';
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize Prisma client
+const prisma = new PrismaClient();
 
 const app = express();
 const PORT = 3009;
@@ -16,7 +20,7 @@ const PORT = 3009;
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
 });
 
@@ -24,7 +28,7 @@ app.use((req, res, next) => {
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   res.sendStatus(200);
 });
 
@@ -57,75 +61,100 @@ app.use(express.json());
 const fileRegistry = {};
 
 // Upload endpoint
-app.post('/upload', upload.single('pdf'), (req, res) => {
+app.post('/upload', upload.single('pdf'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
-  // Generate a unique ID for the file
-  const fileId = uuidv4();
-  
-  // Store file metadata
-  fileRegistry[fileId] = {
-    id: fileId,
-    originalName: req.file.originalname,
-    fileName: req.file.filename,
-    path: req.file.path,
-    uploadDate: new Date(),
-    url: `http://localhost:${PORT}/uploads/${req.file.filename}`,
-    // This is where we would store the Google Drive ID if we had OAuth2
-    driveFileId: null,
-    driveViewUrl: null
-  };
-
-  // Return the file URL and ID
-  res.json({
-    id: fileId,
-    url: fileRegistry[fileId].url
-  });
+  try {
+    // Generate a unique ID for the file
+    const fileId = uuidv4();
+    
+    // Read the file content
+    const fileContent = await fs.promises.readFile(req.file.path);
+    
+    // Create a URL for accessing the PDF
+    const pdfUrl = `${req.protocol}://${req.get('host')}/pdf/${fileId}`;
+    
+    // Store in database using Prisma
+    const pdf = await prisma.pDF.create({
+      data: {
+        id: fileId,
+        filename: req.file.originalname,
+        content: fileContent,
+        fileSize: req.file.size,
+        url: pdfUrl
+      }
+    });
+    
+    // Delete the temporary file since we've stored it in the database
+    await fs.promises.unlink(req.file.path);
+    
+    // Return the file URL and ID
+    res.json({
+      id: pdf.id,
+      url: pdf.url
+    });
+  } catch (error) {
+    console.error('Error storing PDF:', error);
+    res.status(500).json({ error: 'Failed to store PDF' });
+  }
 });
 
-// Simulate Google Drive upload (in a real implementation, this would use OAuth2)
-app.post('/upload-to-drive/:id', (req, res) => {
+// Get PDF endpoint - returns the actual PDF file
+app.get('/pdf/:id', async (req, res) => {
   const fileId = req.params.id;
-  const fileData = fileRegistry[fileId];
   
-  if (!fileData) {
-    return res.status(404).json({ error: 'File not found' });
+  try {
+    // Find the PDF in the database
+    const pdf = await prisma.pDF.findUnique({
+      where: { id: fileId }
+    });
+    
+    if (!pdf) {
+      return res.status(404).json({ error: 'PDF not found' });
+    }
+    
+    // Set appropriate headers
+    res.setHeader('Content-Type', pdf.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${pdf.filename}"`);
+    res.setHeader('Content-Length', pdf.fileSize);
+    
+    // Send the PDF content
+    res.send(Buffer.from(pdf.content));
+  } catch (error) {
+    console.error('Error retrieving PDF:', error);
+    res.status(500).json({ error: 'Failed to retrieve PDF' });
   }
-  
-  // In a real implementation, this would:
-  // 1. Authenticate with Google using OAuth2
-  // 2. Upload the file to Google Drive
-  // 3. Get the Google Drive file ID
-  // 4. Make the file publicly accessible
-  // 5. Return the Google Drive URL
-  
-  // For now, we'll simulate this by generating a Google Drive-like URL
-  const driveFileId = `simulated-drive-id-${fileId}`;
-  const driveViewUrl = `https://drive.google.com/file/d/${driveFileId}/view`;
-  
-  // Update the file metadata
-  fileRegistry[fileId].driveFileId = driveFileId;
-  fileRegistry[fileId].driveViewUrl = driveViewUrl;
-  
-  res.json({
-    id: fileId,
-    url: driveViewUrl,
-    driveFileId: driveFileId
-  });
 });
 
-// Get file info endpoint
-app.get('/file/:id', (req, res) => {
+// Get PDF info endpoint
+app.get('/file/:id', async (req, res) => {
   const fileId = req.params.id;
-  const fileData = fileRegistry[fileId];
   
-  if (!fileData) {
-    return res.status(404).json({ error: 'File not found' });
+  try {
+    // Find the PDF in the database
+    const pdf = await prisma.pDF.findUnique({
+      where: { id: fileId },
+      select: {
+        id: true,
+        filename: true,
+        fileSize: true,
+        url: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+    
+    if (!pdf) {
+      return res.status(404).json({ error: 'PDF not found' });
+    }
+    
+    res.json(pdf);
+  } catch (error) {
+    console.error('Error retrieving PDF info:', error);
+    res.status(500).json({ error: 'Failed to retrieve PDF info' });
   }
-  
-  res.json(fileData);
 });
 
 // Health check endpoint
@@ -135,6 +164,4 @@ app.get('/health', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
-  console.log(`For Google Drive integration, you would need to implement OAuth2 authentication`);
-  console.log(`This server provides the backend infrastructure needed for that implementation`);
 });
