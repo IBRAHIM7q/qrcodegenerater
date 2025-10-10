@@ -110,7 +110,7 @@ const App: React.FC = () => {
     formData.append('pdf', file);
     
     try {
-      const response = await fetch('http://localhost:3009/upload', {
+      const response = await fetch('/.netlify/functions/upload', {
         method: 'POST',
         body: formData,
       });
