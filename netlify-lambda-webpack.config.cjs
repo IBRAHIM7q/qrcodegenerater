@@ -6,6 +6,7 @@ module.exports = {
     'node:buffer': 'commonjs buffer',
     'node:stream': 'commonjs stream',
     'node:util': 'commonjs util',
-    'node:os': 'commonjs os'
+    'node:os': 'commonjs os',
+    'node:crypto': 'commonjs crypto'
   }
 };
