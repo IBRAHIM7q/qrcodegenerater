@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npx prisma generate && vite build && npm run build:functions",
-    "build:functions": "netlify-lambda build netlify/functions",
+    "build:functions": "netlify-lambda build netlify/functions -o functions-dist",
     "preview": "vite preview",
     "server": "node server.js",
     "postinstall": "prisma generate"
