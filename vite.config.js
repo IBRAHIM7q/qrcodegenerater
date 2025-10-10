@@ -13,5 +13,15 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
+  },
+  resolve: {
+    alias: {
+      'node:fs': 'node:fs'
+    }
+  },
+  build: {
+    rollupOptions: {
+      external: ['node:fs', 'node:path', 'node:url', 'node:buffer', 'node:stream', 'node:util', 'node:os']
+    }
   }
 });
