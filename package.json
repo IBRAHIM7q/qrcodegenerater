@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npx prisma generate --schema=./prisma/schema.prisma && vite build && npm run build:functions",
-    "build:functions": "netlify-lambda build netlify/functions --config ./netlify-lambda-webpack.config.js",
+    "build:functions": "netlify-lambda build netlify/functions --config ./netlify-lambda-webpack.config.cjs",
     "preview": "vite preview",
     "server": "node server.js",
     "postinstall": "prisma generate --schema=./prisma/schema.prisma"
