@@ -1,33 +1,19 @@
 module.exports = {
-  externals: {
-    'node:fs': 'commonjs fs',
-    'node:fs/promises': 'commonjs fs/promises',
-    'node:path': 'commonjs path',
-    'node:url': 'commonjs url',
-    'node:buffer': 'commonjs buffer',
-    'node:stream': 'commonjs stream',
-    'node:util': 'commonjs util',
-    'node:os': 'commonjs os',
-    'node:crypto': 'commonjs crypto',
-    'node:events': 'commonjs events',
-    'node:http': 'commonjs http',
-    'node:https': 'commonjs https',
-    'node:net': 'commonjs net',
-    'node:tls': 'commonjs tls',
-    'node:zlib': 'commonjs zlib',
-    'node:assert': 'commonjs assert',
-    'node:child_process': 'commonjs child_process',
-    'node:constants': 'commonjs constants',
-    'node:dgram': 'commonjs dgram',
-    'node:dns': 'commonjs dns',
-    'node:domain': 'commonjs domain',
-    'node:process': 'commonjs process',
-    'node:punycode': 'commonjs punycode',
-    'node:querystring': 'commonjs querystring',
-    'node:readline': 'commonjs readline',
-    'node:string_decoder': 'commonjs string_decoder',
-    'node:timers': 'commonjs timers',
-    'node:tty': 'commonjs tty',
-    'node:vm': 'commonjs vm'
+  mode: 'production',
+  module: {
+    rules: [
+      {
+        test: /\.m?js$/,
+        exclude: /(node_modules)/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: [
+              ['@babel/preset-env', { targets: { node: 'current' } }]
+            ]
+          }
+        }
+      }
+    ]
   }
-};
+}
