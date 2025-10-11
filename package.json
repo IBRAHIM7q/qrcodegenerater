@@ -7,14 +7,15 @@
     "schema": "prisma/schema.prisma"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "npx prisma generate --schema=./prisma/schema.prisma && vite build && npm run build:functions",
-    "build:functions": "netlify-lambda build netlify/functions --config ./netlify-lambda-webpack.config.cjs",
+  "build:functions": "cp -r netlify/functions functions-dist"
+}
+
     "preview": "vite preview",
     "server": "node server.js",
     "postinstall": "prisma generate --schema=./prisma/schema.prisma"
   },
   "dependencies": {
+    "@netlify/functions": "^4.3.0",
     "@prisma/client": "^5.22.0",
     "buffer": "^6.0.3",
     "dotenv": "^16.3.1",
@@ -26,7 +27,6 @@
     "googleapis": "^161.0.0",
     "jspdf": "^3.0.3",
     "multer": "^1.4.5-lts.1",
-    "netlify-lambda": "^2.0.16",
     "next": "^14.1.0",
     "pg": "^8.11.3",
     "pg-hstore": "^2.3.4",
@@ -52,4 +52,5 @@
     "vite": "^6.2.0",
     "webpack": "^5.102.1"
   }
+  
 }
