@@ -1,6 +1,7 @@
 module.exports = {
   externals: {
     'node:fs': 'commonjs fs',
+    'node:fs/promises': 'commonjs fs/promises',
     'node:path': 'commonjs path',
     'node:url': 'commonjs url',
     'node:buffer': 'commonjs buffer',
