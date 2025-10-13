@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
-const formidable = require('formidable');
+const { formidable } = require('formidable');
 const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
+const fs = require('node:fs');
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
@@ -112,22 +112,29 @@ exports.handler = async (event, context) => {
 // Helper function to parse multipart form data
 function parseFormData(event) {
   return new Promise((resolve, reject) => {
-    // Create a proper request-like object that formidable can handle
-    const req = {
-      headers: event.headers,
-      body: Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8')
-    };
-    
-    const form = new formidable.IncomingForm({
-      keepExtensions: true,
-      multiples: true,
-      allowEmptyFiles: false
-    });
-    
-    // Configure formidable to handle file uploads properly
-    form.parse(req, (err, fields, files) => {
-      if (err) return reject(err);
-      resolve({ fields, files });
-    });
+    try {
+      // Create a proper request-like object that formidable can handle
+      const req = {
+        headers: event.headers,
+        body: Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8')
+      };
+      
+      // Formidable v3 requires a different approach
+      const form = formidable({
+        keepExtensions: true,
+        multiples: true,
+        allowEmptyFiles: false,
+        maxFileSize: 10 * 1024 * 1024 // 10MB limit
+      });
+      
+      // Configure formidable to handle file uploads properly
+      form.parse(req, (err, fields, files) => {
+        if (err) return reject(err);
+        resolve({ fields, files });
+      });
+    } catch (error) {
+      console.error('Error in parseFormData:', error);
+      reject(error);
+    }
   });
 }
