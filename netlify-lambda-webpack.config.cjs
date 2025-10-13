@@ -1,10 +1,15 @@
+// Minimal webpack config for netlify-lambda
+const nodeExternals = require('webpack-node-externals');
+
 module.exports = {
   mode: 'production',
+  target: 'node',
+  externals: [nodeExternals()],
   module: {
     rules: [
       {
-        test: /\.m?js$/,
-        exclude: /(node_modules)/,
+        test: /\.js$/,
+        exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
           options: {
@@ -15,12 +20,5 @@ module.exports = {
         }
       }
     ]
-  },
-  resolve: {
-    fallback: {
-      crypto: require.resolve('crypto-browserify'),
-      stream: require.resolve('stream-browserify'),
-      buffer: require.resolve('buffer/')
-    }
   }
 }
