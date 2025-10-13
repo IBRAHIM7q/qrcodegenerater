@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,14 +7,54 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Post {
+  id        String   @id
+  title     String
+  content   String?
+  published Boolean  @default(false)
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+model QRCode {
+  id          String   @id
+  type        QRType   @default(URL)
+  content     String
+  qrImageData String
+  fileName    String?
+  fileSize    Int?
+  fileData    String?
+  fileId      String?
+  userId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  User        User?    @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([fileId])
+  @@index([type])
+  @@index([userId])
+}
+
+model User {
+  id        String   @id
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  QRCode    QRCode[]
+}
+
+enum QRType {
+  URL
+}
+
 model PDF {
   id        String   @id
   filename  String
   content   Bytes
-  fileSize  Int?
-  mimeType  String?  @default("application/pdf")
+  fileSize  Int
   url       String
-  path      String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }

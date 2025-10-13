@@ -13,6 +13,9 @@ const __dirname = path.dirname(__filename);
 // Initialize Prisma client
 const prisma = new PrismaClient();
 
+// Fix for PDF model name
+const PDF = prisma.PDF;
+
 const app = express();
 const PORT = 3009;
 
@@ -60,7 +63,48 @@ app.use(express.json());
 // In-memory storage for file metadata (in production, use a database)
 const fileRegistry = {};
 
-// Upload endpoint
+// Netlify function compatible endpoint
+app.post('/.netlify/functions/upload', upload.single('pdf'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  try {
+    // Generate a unique ID for the file
+    const fileId = uuidv4();
+    
+    // Read the file content
+    const fileContent = await fs.promises.readFile(req.file.path);
+    
+    // Create a URL for accessing the PDF
+    const pdfUrl = `${req.protocol}://${req.get('host')}/pdf/${fileId}`;
+    
+    // Store in database using Prisma
+    const pdf = await prisma.PDF.create({
+      data: {
+        id: fileId,
+        filename: req.file.originalname,
+        content: fileContent,
+        fileSize: req.file.size,
+        url: pdfUrl
+      }
+    });
+    
+    // Delete the temporary file since we've stored it in the database
+    await fs.promises.unlink(req.file.path);
+    
+    // Return the file URL and ID
+    res.json({
+      id: pdf.id,
+      url: pdf.url
+    });
+  } catch (error) {
+    console.error('Error storing PDF:', error);
+    res.status(500).json({ error: 'Failed to store PDF' });
+  }
+});
+
+// Regular upload endpoint (for backward compatibility)
 app.post('/upload', upload.single('pdf'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
@@ -77,7 +121,7 @@ app.post('/upload', upload.single('pdf'), async (req, res) => {
     const pdfUrl = `${req.protocol}://${req.get('host')}/pdf/${fileId}`;
     
     // Store in database using Prisma
-    const pdf = await prisma.pDF.create({
+    const pdf = await prisma.PDF.create({
       data: {
         id: fileId,
         filename: req.file.originalname,

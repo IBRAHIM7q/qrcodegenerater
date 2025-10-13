@@ -7,9 +7,9 @@
     "schema": "prisma/schema.prisma"
   },
   "scripts": {
-  "build:functions": "cp -r netlify/functions functions-dist"
-}
-
+    "dev": "vite",
+    "build": "npx prisma generate --schema=./prisma/schema.prisma && vite build && npm run build:functions",
+    "build:functions": "netlify-lambda build netlify/functions --config ./netlify-lambda-webpack.config.cjs",
     "preview": "vite preview",
     "server": "node server.js",
     "postinstall": "prisma generate --schema=./prisma/schema.prisma"
@@ -52,5 +52,4 @@
     "vite": "^6.2.0",
     "webpack": "^5.102.1"
   }
-  
 }

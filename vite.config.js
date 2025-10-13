@@ -11,6 +11,11 @@ export default defineConfig({
         target: 'http://localhost:3009',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/.netlify/functions/': {
+        target: 'http://localhost:3009',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/.netlify\/functions/, '')
       }
     }
   },

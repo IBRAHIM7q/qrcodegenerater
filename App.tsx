@@ -115,11 +115,30 @@ const App: React.FC = () => {
         body: formData,
       });
       
-      const data = await response.json();
-      
+      // Check if response is ok before trying to parse JSON
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to upload PDF');
+        const errorText = await response.text();
+        let errorMessage = 'Failed to upload PDF';
+        
+        try {
+          // Try to parse error as JSON if possible
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If parsing fails, use the raw text or default message
+          errorMessage = errorText || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
       }
+      
+      // Only try to parse JSON if response is ok
+      const text = await response.text();
+      if (!text) {
+        throw new Error('Empty response from server');
+      }
+      
+      const data = JSON.parse(text);
       
       setPdfUrl(data.url);
       setOptions(prev => ({
