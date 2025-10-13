@@ -46,9 +46,11 @@
     "@types/node": "^22.14.0",
     "@types/uuid": "^9.0.8",
     "@vitejs/plugin-react": "^5.0.0",
-    "babel-loader": "^10.0.0",
+    "babel-loader": "^8.3.0",
+    "crypto-browserify": "^3.12.1",
     "netlify-lambda": "^2.0.16",
     "prisma": "^5.22.0",
+    "stream-browserify": "^3.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
     "webpack": "^5.102.1"
