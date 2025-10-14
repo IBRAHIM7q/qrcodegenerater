@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { formidable } = require('formidable');
 const { v4: uuidv4 } = require('uuid');
+// Use fs without node: prefix for better compatibility with Netlify build
 const fs = require('fs');
 
 // Initialize Prisma client
@@ -53,7 +54,13 @@ exports.handler = async (event, context) => {
       if (file.buffer) {
         fileContent = file.buffer;
       } else if (file.filepath) {
-        fileContent = await fs.promises.readFile(file.filepath);
+        // Use require('fs').readFile with a promise wrapper instead of fs.promises
+        fileContent = await new Promise((resolve, reject) => {
+          fs.readFile(file.filepath, (err, data) => {
+            if (err) reject(err);
+            else resolve(data);
+          });
+        });
       } else {
         throw new Error('No file content available');
       }
