@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { formidable } = require('formidable');
 const { v4: uuidv4 } = require('uuid');
-const fs = require('node:fs');
+const fs = require('fs');
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
